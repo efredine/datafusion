@@ -22,13 +22,13 @@
 use arrow::datatypes::i256;
 use arrow::{array::ArrayRef, datatypes::DataType};
 use arrow_array::{
-    new_null_array, BinaryArray, BooleanArray, Date32Array, Date64Array, Decimal128Array,
-    Decimal256Array, FixedSizeBinaryArray, Float16Array, Float32Array, Float64Array,
-    Int16Array, Int32Array, Int64Array, Int8Array, LargeBinaryArray, LargeStringArray,
-    StringArray, Time32MillisecondArray, Time32SecondArray, Time64MicrosecondArray,
-    Time64NanosecondArray, TimestampMicrosecondArray, TimestampMillisecondArray,
-    TimestampNanosecondArray, TimestampSecondArray, UInt16Array, UInt32Array,
-    UInt64Array, UInt8Array,
+    new_empty_array, new_null_array, BinaryArray, BooleanArray, Date32Array, Date64Array,
+    Decimal128Array, Decimal256Array, FixedSizeBinaryArray, Float16Array, Float32Array,
+    Float64Array, Int16Array, Int32Array, Int64Array, Int8Array, LargeBinaryArray,
+    LargeStringArray, StringArray, Time32MillisecondArray, Time32SecondArray,
+    Time64MicrosecondArray, Time64NanosecondArray, TimestampMicrosecondArray,
+    TimestampMillisecondArray, TimestampNanosecondArray, TimestampSecondArray,
+    UInt16Array, UInt32Array, UInt64Array, UInt8Array,
 };
 use arrow_schema::{Field, FieldRef, Schema, TimeUnit};
 use datafusion_common::{internal_datafusion_err, internal_err, plan_err, Result};
@@ -853,6 +853,30 @@ macro_rules! get_data_page_statistics {
                         TimeUnit::Millisecond => Arc::new(TimestampMillisecondArray::from_iter(iter).with_timezone_opt(timezone.clone())),
                         TimeUnit::Microsecond => Arc::new(TimestampMicrosecondArray::from_iter(iter).with_timezone_opt(timezone.clone())),
                         TimeUnit::Nanosecond => Arc::new(TimestampNanosecondArray::from_iter(iter).with_timezone_opt(timezone.clone())),
+                    })
+                },
+                Some(DataType::Time32(unit)) => {
+                    Ok(match unit {
+                        TimeUnit::Second =>  Arc::new(Time32SecondArray::from_iter(
+                            [<$stat_type_prefix Int32DataPageStatsIterator>]::new($iterator).flatten(),
+                        )),
+                        TimeUnit::Millisecond => Arc::new(Time32MillisecondArray::from_iter(
+                            [<$stat_type_prefix Int32DataPageStatsIterator>]::new($iterator).flatten(),
+                        )),
+                        // don't know how to extract statistics, so return an empty array
+                        _ => new_empty_array(&DataType::Time32(unit.clone())),
+                    })
+                },
+                Some(DataType::Time64(unit)) => {
+                    Ok(match unit {
+                        TimeUnit::Microsecond =>  Arc::new(Time64MicrosecondArray::from_iter(
+                            [<$stat_type_prefix Int64DataPageStatsIterator>]::new($iterator).flatten(),
+                        )),
+                        TimeUnit::Nanosecond => Arc::new(Time64NanosecondArray::from_iter(
+                            [<$stat_type_prefix Int64DataPageStatsIterator>]::new($iterator).flatten(),
+                        )),
+                        // don't know how to extract statistics, so return an empty array
+                        _ => new_empty_array(&DataType::Time64(unit.clone())),
                     })
                 },
                 Some(DataType::Date32) => Ok(Arc::new(Date32Array::from_iter([<$stat_type_prefix Int32DataPageStatsIterator>]::new($iterator).flatten()))),
